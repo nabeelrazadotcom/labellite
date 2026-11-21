@@ -1,0 +1,11 @@
+# Local legacy / spec files (excluded from version control)
+Row Labeler.html
+FEATURE_SPEC.md
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

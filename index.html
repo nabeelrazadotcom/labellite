@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabelLite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="hdr-group">
+      <button class="btn on" id="btnFiles" title="Hide / show the image list (Z or L)"><span class="material-symbols-rounded">photo_library</span> Images</button>
+      <select id="appMode" title="Switch between Row Labeler Mode and Bounding Box Mode">
+        <option value="row">Row Mode</option>
+        <option value="box">Box Mode</option>
+      </select>
+      <button class="btn primary" id="btnOpen" title="Open the unzipped folder"><span class="material-symbols-rounded">folder_open</span> Open</button>
+    </div>
+
+    <span class="sep"></span>
+
+    <div class="hdr-group">
+      <button class="btn" id="btnPrev" title="Previous image (A)"><span class="material-symbols-rounded">arrow_back</span> Prev</button>
+      <button class="btn" id="btnNext" title="Next image (D)">Next <span class="material-symbols-rounded" style="margin-right:0;margin-left:2px">arrow_forward</span></button>
+    </div>
+
+    <span class="sep"></span>
+
+    <div class="hdr-group">
+      <button class="btn on" id="mEdit" title="Select / edit (E or Esc)"><span class="material-symbols-rounded">near_me</span> Edit</button>
+      <button class="btn rowonly" id="mPoly" title="Draw segment: click start and end of centerline, or double-click image (W or P)"><span class="material-symbols-rounded">timeline</span> Draw</button>
+      <button class="btn rowonly" id="mSlice" title="Slice row: click on a row to cut in two pieces (S or K)"><span class="material-symbols-rounded">content_cut</span> Slice</button>
+      <button class="btn boxonly" id="mBox" title="Draw a bounding box: drag corner to corner, or click 2 corners (R)"><span class="material-symbols-rounded">crop_free</span> Draw box</button>
+    </div>
+
+    <span class="sep"></span>
+
+    <div class="hdr-group">
+      <button class="btn" id="btnSave" title="Save now and fit segments inside the image (Ctrl+S)"><span class="material-symbols-rounded">save</span> Save</button>
+      <button class="btn icon-btn" id="btnUndo" title="Undo (Ctrl+Z)"><span class="material-symbols-rounded">undo</span></button>
+      <button class="btn icon-btn" id="btnRedo" title="Redo (Ctrl+Y)"><span class="material-symbols-rounded">redo</span></button>
+      <button class="btn icon-btn" id="btnDel" title="Delete selected segments or vertex (` or Del)"><span class="material-symbols-rounded">delete</span></button>
+      <button class="btn icon-btn" id="btnDelJson" title="Delete JSON of this image (Ctrl+Del)"><span class="material-symbols-rounded">delete_forever</span></button>
+    </div>
+
+    <span class="sep"></span>
+
+    <div class="hdr-group">
+      <button class="btn icon-btn" id="btnFit" title="Fit image to window (F)"><span class="material-symbols-rounded">fit_screen</span></button>
+      <button class="btn" id="btnHide" title="Show / hide segments (G or H)"><span class="material-symbols-rounded" id="hideIcon">visibility</span> <span id="hideText">Hide</span></button>
+      <button class="btn icon-btn" id="btnHelp" title="Keyboard shortcuts"><span class="material-symbols-rounded">help</span></button>
+    </div>
+
+    <span class="sep"></span>
+
+    <div class="hdr-group" id="hdrClassGroup" title="Active class: changes class of selected rows, or all rows if none selected">
+      <span class="sw" id="hdrClassSwatch" style="width:10px;height:10px;border-radius:3px"></span>
+      <select id="hdrClassSelect" title="Class selector: change class of selected rows, or all rows if none selected"></select>
+      <button class="btn sm" id="btnSelectAllRowsClass" title="Select all rows on this image and set this class"><span class="material-symbols-rounded" style="font-size:14px;margin:0">done_all</span> All</button>
+    </div>
+
+    <span class="hdr-spacer"></span>
+
+    <div class="hdr-group">
+      <div class="timer-badge" id="workTimer" title="Today's active working time — click to view Report Card" style="cursor:pointer">
+        <span class="material-symbols-rounded" id="workTimerIcon">schedule</span>
+        <span id="workTimerText">00:00:00</span>
+        <span id="workTimerStatus" class="timer-status"></span>
+      </div>
+      <button class="btn" id="btnReport" title="Daily Report Card: progress, images, blocks, work time"><span class="material-symbols-rounded">analytics</span> Report</button>
+      <button class="btn primary rowonly" id="btnUpload" title="QC done: zip this folder's JSONs and upload them to the Shared Drive"><span class="material-symbols-rounded">cloud_upload</span> Upload</button>
+      <button class="btn on" id="btnTools" title="Hide / show the right panel (X or T)">Tools <span class="material-symbols-rounded" style="margin-right:0;margin-left:2px">tune</span></button>
+    </div>
+  </header>
+
+  <aside id="left">
+    <div class="sect" id="wsQueueSect" style="display:none">
+      <div class="ws-hdr">
+        <span class="material-symbols-rounded" style="font-size:16px;color:var(--accent)">workspaces</span>
+        <span id="wsName" style="font-weight:600;font-size:12.5px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Workspace</span>
+        <button class="btn sm icon-btn" id="btnWsRefresh" title="Rescan workspace folder for newly extracted ZIP blocks" style="height:22px;min-width:22px;padding:0 4px"><span class="material-symbols-rounded" style="font-size:14px;margin:0">refresh</span></button>
+      </div>
+      <div class="ws-tabs" id="wsTabs">
+        <button class="ws-tab on" data-t="pending">Pending <span id="wsPendingCnt" class="ws-cnt">0</span></button>
+        <button class="ws-tab" data-t="done">Done <span id="wsDoneCnt" class="ws-cnt">0</span></button>
+      </div>
+      <div id="wsList" class="ws-list"></div>
+    </div>
+    <div class="sect">
+      <h3>Folder</h3>
+      <div id="folderName">No folder open</div>
+      <div id="folderInfo">Open the unzipped task folder</div>
+      <div id="folderProgress" title="Folder labeling progress"><div id="folderProgressBar"></div></div>
+      <div id="folderTotal" class="muted" title="Total instances (all classes) in this folder"></div>
+      <input id="fileFilter" placeholder="Filter images&hellip;">
+      <div class="filter-pills" id="fileFilterPills">
+        <button class="filter-pill on" data-f="all" title="Show all images">All</button>
+        <button class="filter-pill" data-f="bad" title="Images with segments needing fixing">Fix</button>
+        <button class="filter-pill" data-f="none" title="Images with no JSON yet">No JSON</button>
+        <button class="filter-pill" data-f="high" title="Images with 20+ segments">20+</button>
+      </div>
+      <div id="hiBar"></div>
+    </div>
+    <div id="files"></div>
+  </aside>
+
+  <main id="stage">
+    <canvas id="cv"></canvas>
+    <!-- Restore previous session banner -->
+    <div id="restoreBar">
+      <span><span class="material-symbols-rounded">history</span> Resume previous folder: <b id="restoreName"></b></span>
+      <button class="btn primary sm" id="btnRestoreSession"><span class="material-symbols-rounded">restore_page</span> Resume</button>
+    </div>
+    <!-- Floating HUD: click puck to open/close, drag puck or header to move -->
+    <div id="hud">
+      <button id="hudPuck" title="Quick tools — click to toggle, drag to move"><span class="material-symbols-rounded" style="font-size:20px">bolt</span></button>
+      <div id="hudPanel">
+        <div id="hudHeader">
+          <span class="material-symbols-rounded hud-grip" title="Drag to move panel">drag_indicator</span>
+          <span class="hud-title">Quick Tools</span>
+          <span id="hudSelBadge" class="hud-badge">No row</span>
+          <button id="hudCloseBtn" title="Close panel"><span class="material-symbols-rounded" style="font-size:16px">close</span></button>
+        </div>
+
+        <div class="hud-sliders">
+          <div class="hud-slider-row">
+            <div class="hud-slider-label">
+              <span class="material-symbols-rounded">rotate_right</span><span>Tilt</span>
+            </div>
+            <button class="hud-nudge-btn" id="hudAngMinus" title="Rotate -1°">&minus;</button>
+            <input type="range" id="hudAngle" min="-90" max="90" step="0.5" value="0">
+            <button class="hud-nudge-btn" id="hudAngPlus" title="Rotate +1°">+</button>
+            <span id="hudAngleVal" class="hud-val-badge">0°</span>
+          </div>
+
+          <div class="hud-slider-row">
+            <div class="hud-slider-label">
+              <span class="material-symbols-rounded">unfold_more</span><span>Width</span>
+            </div>
+            <button class="hud-nudge-btn" id="hudWidMinus" title="Thinner -2px">&minus;</button>
+            <input type="range" id="hudWidth" min="4" max="150" step="1" value="36">
+            <button class="hud-nudge-btn" id="hudWidPlus" title="Wider +2px">+</button>
+            <span id="hudWidthVal" class="hud-val-badge">36px</span>
+          </div>
+
+          <div class="hud-slider-row">
+            <div class="hud-slider-label">
+              <span class="material-symbols-rounded">open_in_full</span><span>Length</span>
+            </div>
+            <button class="hud-nudge-btn" id="hudLenMinus" title="Shorter -10px">&minus;</button>
+            <input type="range" id="hudLen" min="20" max="1500" step="5" value="200">
+            <button class="hud-nudge-btn" id="hudLenPlus" title="Longer +10px">+</button>
+            <span id="hudLenVal" class="hud-val-badge">200px</span>
+          </div>
+        </div>
+
+        <div class="hud-sect-title">Row Tools</div>
+        <div class="hud-grid">
+          <button class="hud-btn" id="hudRectify" title="Straighten: snap skewed rows into clean rectangles (Q)">
+            <span class="material-symbols-rounded">crop_square</span> Straighten <kbd>Q</kbd>
+          </button>
+          <button class="hud-btn" id="hudSlice" title="Cut Row: click on a row to cut in two pieces (S or K)">
+            <span class="material-symbols-rounded">content_cut</span> Cut Row <kbd>S</kbd>
+          </button>
+          <button class="hud-btn" id="hudDup" title="Copy Row: duplicate selected rows next to them (Ctrl+D)">
+            <span class="material-symbols-rounded">content_copy</span> Copy Row <kbd>D</kbd>
+          </button>
+          <button class="hud-btn" id="hudMulti" title="Draw Many: draw multiple parallel rows at once (R or M)">
+            <span class="material-symbols-rounded">grid_view</span> Draw Many <kbd>R</kbd>
+          </button>
+        </div>
+
+        <div class="hud-sect-title">Smart Alignment</div>
+        <div class="hud-grid">
+          <button class="hud-btn" id="hudPlant" title="Snap Plants: auto-align selected rows to green potato plants (Alt+P)">
+            <span class="material-symbols-rounded">eco</span> Snap Plants <kbd>Alt+P</kbd>
+          </button>
+          <button class="hud-btn" id="hudGradient" title="Even Angles: smooth perspective angle fan across selected rows (Alt+G)">
+            <span class="material-symbols-rounded">gradient</span> Even Angles <kbd>Alt+G</kbd>
+          </button>
+          <button class="hud-btn" id="hudCalib" title="Set Guides: set perspective angle guide from 2 boundary rows (C)">
+            <span class="material-symbols-rounded">straighten</span> Set Guides <kbd>C</kbd>
+          </button>
+          <button class="hud-btn" id="hudSnap" title="Match Angle: snap selected rows to perspective guide (Alt+A)">
+            <span class="material-symbols-rounded">auto_fix_high</span> Match Angle <kbd>Alt+A</kbd>
+          </button>
+          <button class="hud-btn" id="hudSnapBeds" title="Snap Beds: slide drifted rows strictly perpendicularly onto potato beds using Master color + plants + furrow contrast (Alt+B)">
+            <span class="material-symbols-rounded">align_horizontal_center</span> Snap Beds <kbd>Alt+B</kbd>
+          </button>
+          <button class="hud-btn" id="hudAlignEnds" title="Align Ends: align selected row start/end points to the 2 Master boundary lines, including sloped edges (Alt+E)">
+            <span class="material-symbols-rounded">vertical_align_center</span> Align Ends <kbd>Alt+E</kbd>
+          </button>
+          <button class="hud-btn hud-full" id="hudFullFit" title="Full Auto-Fit: Match Angles → Snap Beds → Align Ends in one undoable step">
+            <span class="material-symbols-rounded">auto_awesome</span> Full Auto-Fit (Angle + Beds + Ends)
+          </button>
+          <button class="hud-btn hud-full" id="hudFill" title="Fill In-Between: create evenly spaced rows between 2 selected rows (V)">
+            <span class="material-symbols-rounded">density_medium</span> Fill In-Between <kbd>V</kbd>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="empty">
+      <b>Open a folder to start labeling</b>
+      <div>Choose your parent workspace folder (e.g. <code>Potato Rows</code>) or an unzipped task folder.<br>Your work is saved automatically to the <code>.json</code> files.</div>
+      <div class="row" style="justify-content:center;gap:8px">
+        <button class="btn primary" id="btnNextBlockEmpty" style="display:none"><span class="material-symbols-rounded">skip_next</span> <span id="btnNextBlockEmptyTxt">Open Next Block</span></button>
+        <button class="btn primary" id="btnOpen2"><span class="material-symbols-rounded">folder_open</span> Open folder</button>
+      </div>
+      <div class="muted" id="browserNote"></div>
+    </div>
+    <div id="banner"><span id="bannerText"></span><button class="btn sm" id="btnNextBad">Show next (N)</button></div>
+    <div id="hint"></div>
+    <div id="loading">Loading image&hellip;</div>
+  </main>
+
+  <aside id="right">
+    <div class="sect">
+      <h3><span class="rowonly">Labels</span><span class="boxonly">Classes</span></h3>
+      <div class="labels" id="labels"></div>
+      <div class="row">
+        <label><span class="rowonly">Draw as</span><span class="boxonly">Default class</span></label>
+        <select class="inp" id="curLabel"></select>
+        <button class="btn sm rowonly" id="btnApplyLabel" title="Change the label of the selected segments"><span class="material-symbols-rounded">check</span> Apply to selected</button>
+      </div>
+      <div class="row boxonly" style="margin-top:2px">
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+          <input type="checkbox" id="askEach"> Ask class for each new box
+        </label>
+      </div>
+      <div class="row">
+        <input class="inp" id="newLabel" placeholder="new label" style="width:120px">
+        <button class="btn sm" id="btnAddLabel"><span class="material-symbols-rounded">add</span> Add</button>
+      </div>
+    </div>
+
+    <div class="sect">
+      <h3><span class="rowonly">Edit rows</span><span class="boxonly">Edit selection</span> <span class="grow"></span><span class="muted" id="selInfo">none selected</span></h3>
+      <div class="row">
+        <button class="btn sm" id="btnSelAll" title="Ctrl+A"><span class="material-symbols-rounded">select_all</span> Select all</button>
+        <button class="btn sm" id="btnSelNone"><span class="material-symbols-rounded">deselect</span> Select none</button>
+      </div>
+      <div class="row">
+        <button class="btn sm" id="btnCopy" title="Copy the selected items (Ctrl+C)"><span class="material-symbols-rounded">content_copy</span> Copy</button>
+        <button class="btn sm" id="btnPaste" title="Paste copied items (Ctrl+V). On another image they land in the same place; on the same image, next to the originals."><span class="material-symbols-rounded">content_paste</span> Paste</button>
+        <button class="btn sm" id="btnDup" title="Duplicate the selected items next to them (Ctrl+D)"><span class="material-symbols-rounded">library_add</span> Duplicate</button>
+      </div>
+      <div class="row rowonly">
+        <label>Rotate around</label>
+        <div class="seg" id="pivotSeg"><button data-v="group" class="on">all together</button><button data-v="each">each row</button></div>
+      </div>
+      <div class="row">
+        <label>Step</label>
+        <input class="num" id="stepPx" type="number" min="1" value="10"> <span class="muted">px</span>
+        <input class="num rowonly" id="stepDeg" type="number" min="0.1" step="0.1" value="1"> <span class="muted rowonly">&deg;</span>
+      </div>
+      <div class="tgrid">
+        <span class="lbl rowonly">Rotate</span><button class="btn rowonly" data-act="rot-"><span class="material-symbols-rounded">rotate_left</span> Left</button><button class="btn rowonly" data-act="rot+">Right <span class="material-symbols-rounded" style="margin-right:0;margin-left:2px">rotate_right</span></button>
+        <span class="lbl"><span class="rowonly">Width</span><span class="boxonly">Horiz</span></span><button class="btn" data-act="wid-"><span class="material-symbols-rounded">unfold_less</span> Thinner</button><button class="btn" data-act="wid+"><span class="material-symbols-rounded">unfold_more</span> Wider</button>
+        <span class="lbl"><span class="rowonly">Length</span><span class="boxonly">Vert</span></span><button class="btn" data-act="len-"><span class="material-symbols-rounded">compress</span> Shorter</button><button class="btn" data-act="len+"><span class="material-symbols-rounded">expand</span> Longer</button>
+        <span class="lbl rowonly">Spacing</span><button class="btn rowonly" data-act="gap-"><span class="material-symbols-rounded">close_fullscreen</span> Closer</button><button class="btn rowonly" data-act="gap+"><span class="material-symbols-rounded">open_in_full</span> Apart</button>
+        <span class="lbl">Move</span>
+        <div style="grid-column:2/4;display:grid;grid-template-columns:repeat(4,1fr);gap:4px">
+          <button class="btn" data-act="mvL"><span class="material-symbols-rounded" style="margin:0">arrow_back</span></button><button class="btn" data-act="mvU"><span class="material-symbols-rounded" style="margin:0">arrow_upward</span></button><button class="btn" data-act="mvD"><span class="material-symbols-rounded" style="margin:0">arrow_downward</span></button><button class="btn" data-act="mvR"><span class="material-symbols-rounded" style="margin:0">arrow_forward</span></button>
+        </div>
+      </div>
+      <div class="muted rowonly" style="margin-top:6px">Hold a button to repeat. On the image: drag rows to move them, drag side handles to change width, drag end handles on short edges to move both points (<kbd>Shift</kbd> = lock to axis), drag the round handle to rotate.</div>
+      <div class="muted boxonly" style="margin-top:6px">Drag a box to move it. Drag corners to resize. Right-click or press <kbd>C</kbd> to change its class.</div>
+    </div>
+
+    <div class="sect">
+      <h3><span class="rowonly">Segments</span><span class="boxonly">Boxes</span> <span class="grow"></span><span class="muted" id="shapeCount"></span></h3>
+      <div id="shapes"></div>
+    </div>
+  </aside>
+
+  <footer>
+    <span id="fPos">&ndash;</span>
+    <span id="fZoom">&ndash;</span>
+    <span id="fSize">&ndash;</span>
+    <span id="fIdx">&ndash;</span>
+    <span class="sep"></span>
+    <span id="fImageTimer" title="Active working time on this image"><span class="material-symbols-rounded">timer</span> <span id="imgTimerText">00:00</span></span>
+    <span id="fBlockTimer" title="Active working time on this block/folder"><span class="material-symbols-rounded">work_history</span> Block: <span id="blockTimerText">00:00</span></span>
+    <span class="grow"></span>
+    <span id="fBad"></span>
+    <span id="saveState">No changes</span>
+  </footer>
+</div>
+
+<dialog id="dlgMulti">
+  <h2>Draw multiple rows</h2>
+  <div class="row"><label>Number of rows</label><input class="num" id="mN" type="number" min="1" max="200" value="6"></div>
+  <div class="row"><label>Direction</label>
+    <div class="seg" id="mDirSeg"><button data-v="v" class="on">Vertical &#8597;</button><button data-v="h">Horizontal &#8596;</button></div>
+  </div>
+  <div class="row"><label>Gap between rows</label><input class="num" id="mGap" type="number" min="0" max="500" value="25"> <span class="muted">% of row width</span></div>
+  <p class="muted" style="margin:10px 0 14px">Then drag a box on the image, from the outer edge of the first row to the outer edge of the last row.<br>The rows are created inside it and selected, so you can rotate or adjust them right away.</p>
+  <div class="row" style="justify-content:flex-end">
+    <button class="btn" id="mCancel">Cancel</button>
+    <button class="btn primary" id="mOk">Start drawing</button>
+  </div>
+</dialog>
+
+<dialog id="dlgHelp">
+  <h2>Keyboard and mouse</h2>
+  <div class="keys">
+    <span style="grid-column:1/3;font-weight:600;color:var(--accent);margin-top:4px">Left-Hand Shortcuts (right hand on mouse)</span>
+    <span><kbd>A</kbd> / <kbd>D</kbd></span><span>Previous / next image</span>
+    <span><kbd>E</kbd> / <kbd>Esc</kbd></span><span>Back to edit mode / cancel drawing / clear selection</span>
+    <span><kbd>W</kbd></span><span>Draw segment: click start and end of centerline (or double-click image) (also <kbd>P</kbd>)</span>
+    <span><kbd>S</kbd></span><span>Slice tool: click on any row to cut in two pieces (also <kbd>K</kbd>)</span>
+    <span><kbd>R</kbd></span><span>Multiple rows dialog (also <kbd>M</kbd>)</span>
+    <span><kbd>Q</kbd></span><span>Rectify selected rows into clean symmetric rectangles</span>
+    <span><kbd>Alt+P</kbd></span><span>Auto-align selected rows perpendicularly to green potato plants (zero parallel drift)</span>
+    <span><kbd>Alt+G</kbd></span><span>Smooth perspective angle gradient across selected rows</span>
+    <span><kbd>Alt+A</kbd></span><span>Snap angle of selected rows to perspective gradient / VP</span>
+    <span><kbd>Alt+B</kbd></span><span>Snap Beds: slide drifted rows perpendicularly onto potato beds (Master color + plants + spacing)</span>
+    <span><kbd>Alt+E</kbd></span><span>Align Ends: align selected row start/end points to the 2 calibrated Master boundary lines</span>
+    <span><kbd>C</kbd> / <kbd>Alt+C</kbd></span><span>Calibrate perspective, bed color &amp; boundary lines from 2 outer Master rows</span>
+    <span><kbd>V</kbd> / <kbd>Alt+V</kbd></span><span>Fill perspective rows between 2 boundary rows</span>
+    <span><kbd>`</kbd> (tilde)</span><span>Delete selected vertex / segment, or undo point in drawing (also <kbd>Del</kbd>)</span>
+    <span><kbd>1</kbd> / <kbd>2</kbd></span><span>Rotate selected rows left / right (<kbd>Shift</kbd> = &times;5) (also <kbd>[</kbd> / <kbd>]</kbd>)</span>
+    <span><kbd>3</kbd> / <kbd>4</kbd></span><span>Selected rows thinner / wider (<kbd>Shift</kbd> = &times;5)</span>
+    <span><kbd>5</kbd> / <kbd>6</kbd></span><span>Selected rows shorter / longer (<kbd>Shift</kbd> = &times;5)</span>
+    <span><kbd>Shift</kbd>+<kbd>WASD</kbd></span><span>Nudge selected rows up / left / down / right</span>
+    <span><kbd>F</kbd></span><span>Fit image to window</span>
+    <span><kbd>G</kbd></span><span>Hide / show segments (also <kbd>H</kbd>)</span>
+    <span><kbd>B</kbd></span><span>Next problem segment that needs fixing (also <kbd>N</kbd>)</span>
+    <span><kbd>Z</kbd></span><span>Hide / show the images list panel (also <kbd>L</kbd>)</span>
+    <span><kbd>X</kbd></span><span>Hide / show the tools panel (also <kbd>T</kbd>)</span>
+
+    <span style="grid-column:1/3;font-weight:600;color:var(--accent);margin-top:6px">System & Clipboard</span>
+    <span><kbd>Ctrl+S</kbd></span><span>Save now and fit segments inside image</span>
+    <span><kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd></span><span>Undo / redo (<kbd>Ctrl+Shift+Z</kbd> also redoes)</span>
+    <span><kbd>Ctrl+A</kbd></span><span>Select all segments</span>
+    <span><kbd>Ctrl+C</kbd> / <kbd>Ctrl+V</kbd></span><span>Copy / paste rows</span>
+    <span><kbd>Ctrl+D</kbd></span><span>Duplicate selected rows next to them</span>
+    <span><kbd>Ctrl+Del</kbd></span><span>Delete JSON of current image (undoable with <kbd>Ctrl+Z</kbd>)</span>
+
+    <span style="grid-column:1/3;font-weight:600;color:var(--accent);margin-top:6px">Mouse Controls</span>
+    <span><kbd>Mouse wheel</kbd></span><span>Zoom in / out at cursor</span>
+    <span><kbd>Drag</kbd> empty area</span><span>Pan the image (or middle / right drag, or hold <kbd>Space</kbd>)</span>
+    <span><kbd>Click</kbd> segment</span><span>Select it (<kbd>Ctrl</kbd>+click adds to selection)</span>
+    <span><kbd>Click</kbd> (Slice mode)</span><span>Cut clicked row in two pieces at cursor</span>
+    <span><kbd>Shift</kbd>+drag</span><span>Box-select segments</span>
+    <span><kbd>Drag</kbd> segment / vertex</span><span>Move segment / move corner</span>
+    <span><kbd>Drag</kbd> side / end handle</span><span>Long edges: resize width. Short edges: move both end points (<kbd>Shift</kbd> = lock axis)</span>
+    <span><kbd>Shift</kbd>+click vertex</span><span>Delete vertex</span>
+    <span><kbd>Double-click</kbd></span><span>Double-click a row to duplicate it at average width; double-click empty canvas to draw new row</span>
+    <span><kbd>HUD puck</kbd></span><span>Click to open tools panel; drag anywhere on canvas</span>
+
+    <span style="grid-column:1/3;font-weight:600;color:var(--accent);margin-top:6px">Bounding Box Mode</span>
+    <span><kbd>R</kbd> (or <kbd>P</kbd>)</span><span>Draw box: drag corner to corner, or click 2 opposite corners</span>
+    <span><kbd>Right-click</kbd></span><span>Menu: Draw box / Edit box / Edit class / Delete</span>
+    <span><kbd>C</kbd></span><span>Change class of selected box(es)</span>
+    <span><kbd>Drag</kbd> corner / side</span><span>Resize box (saved as 2 points like AnyLabeling)</span>
+    <span>Class panel</span><span>Click a class to draw with it or highlight images with it</span>
+  </div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn primary" id="helpClose">Close</button></div>
+</dialog>
+
+<dialog id="dlgReport" style="width:540px;max-width:92vw">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+    <span class="material-symbols-rounded" style="font-size:24px;color:var(--accent)">analytics</span>
+    <h2 style="margin:0;font-size:17px;flex:1">Daily Progress Report</h2>
+    <span id="repDateBadge" class="badge" style="font-family:Consolas,monospace;padding:3px 8px;font-size:12px">Today</span>
+  </div>
+
+  <div class="report-grid">
+    <div class="report-card">
+      <div class="rep-card-header">
+        <span class="material-symbols-rounded">schedule</span>
+        <span>Active Work Time</span>
+      </div>
+      <div class="rep-card-val" id="repWorkTime">0h 0m</div>
+      <div class="rep-card-sub" id="repWorkTimeSub">Tracking active tab time</div>
+    </div>
+
+    <div class="report-card">
+      <div class="rep-card-header">
+        <span class="material-symbols-rounded">photo_library</span>
+        <span>Images Completed</span>
+      </div>
+      <div class="rep-card-val" id="repImagesDone">0</div>
+      <div class="rep-card-sub" id="repImagesSub">0 today</div>
+    </div>
+
+    <div class="report-card">
+      <div class="rep-card-header">
+        <span class="material-symbols-rounded">folder_zip</span>
+        <span>Blocks Done</span>
+      </div>
+      <div class="rep-card-val" id="repBlocksDone">0</div>
+      <div class="rep-card-sub" id="repBlocksSub">Uploaded to Drive</div>
+    </div>
+
+    <div class="report-card">
+      <div class="rep-card-header">
+        <span class="material-symbols-rounded">speed</span>
+        <span>Average Pace</span>
+      </div>
+      <div class="rep-card-val" id="repPace">&ndash;</div>
+      <div class="rep-card-sub" id="repPaceSub">per image</div>
+    </div>
+  </div>
+
+  <div class="report-sect" id="repCurrentBlockSect">
+    <h3>Current Folder Progress</h3>
+    <div class="rep-block-box">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+        <span style="font-weight:600" id="repCurFolderName">No folder open</span>
+        <span class="muted" id="repCurFolderStats">0 / 0 images</span>
+      </div>
+      <div class="rep-progress-bar">
+        <div id="repCurFolderBar" class="rep-progress-fill" style="width:0%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11.5px;color:var(--muted)">
+        <span id="repCurFolderTime">Time on block: 0m 0s</span>
+        <span id="repCurFolderStatus">0 to fix</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="report-sect">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <h3>Recent History (Past 7 Days)</h3>
+      <span class="muted" style="font-size:11px">Auto-saved daily</span>
+    </div>
+    <div class="rep-history-wrap">
+      <table class="rep-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Work Time</th>
+            <th>Images</th>
+            <th>Blocks</th>
+            <th>Pace</th>
+          </tr>
+        </thead>
+        <tbody id="repHistoryRows">
+          <!-- Populated dynamically -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="row" style="justify-content:space-between;margin-top:16px;border-top:1px solid var(--line);padding-top:12px">
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="btnCopyReport" title="Copy text summary to share with your manager or team"><span class="material-symbols-rounded">content_copy</span> Copy Summary</button>
+      <button class="btn" id="btnSheetSettings" title="Configure automatic logging to your private personal Google Sheet"><span class="material-symbols-rounded" style="color:var(--ok)">table_chart</span> Sheet Sync</button>
+    </div>
+    <button class="btn primary" id="reportClose">Close</button>
+  </div>
+</dialog>
+
+<dialog id="dlgSheet" style="width:520px;max-width:94vw">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+    <span class="material-symbols-rounded" style="font-size:22px;color:var(--ok)">table_chart</span>
+    <h2 style="margin:0;font-size:16px;flex:1">Personal Google Sheet Sync</h2>
+    <span id="sheetStatusPill" class="badge none">Not set</span>
+  </div>
+  <p class="muted" style="margin:0 0 10px;line-height:1.45">
+    Keep your Google Sheet <b>Restricted / Private</b>. When a block uploads to Drive, this logs <code>Date</code>, <code>Block No</code> (e.g. <code>471</code>), <code>Total Images</code>, and <code>Done</code> directly into Columns B–E (updating pre-filled upcoming block rows like 472, 473 automatically).
+  </p>
+  <div class="row"><label style="min-width:110px">Web App URL</label><input class="inp" id="sheetUrl" placeholder="https://script.google.com/macros/s/…/exec" style="flex:1"></div>
+  <div class="row">
+    <label style="min-width:110px">Secret Token</label>
+    <input class="inp" id="sheetToken" placeholder="Auto-generated secret token" style="flex:1;font-family:Consolas,monospace;font-size:12px">
+    <button class="btn sm" id="btnGenSheetToken" title="Generate a fresh random secret token">New</button>
+  </div>
+  <label class="row" style="gap:6px;cursor:pointer;margin-top:6px">
+    <input type="checkbox" id="sheetEnabled"> Auto-log to my Google Sheet right after Drive upload
+  </label>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+    <button class="btn sm" id="btnCopySheetScript" title="Copy ready-to-paste Apps Script (Code.gs) with your secret token baked in"><span class="material-symbols-rounded">code</span> Copy Apps Script (Code.gs)</button>
+    <button class="btn sm" id="btnTestSheet" title="Send a safe ping to verify your Web App URL and token"><span class="material-symbols-rounded">wifi_tethering</span> Test Connection</button>
+    <button class="btn sm" id="btnSyncTodayBlocks" title="Sync all blocks you already completed today to your Google Sheet (and move any finished blocks into uploaded/)"><span class="material-symbols-rounded" style="color:var(--ok)">cloud_upload</span> Sync Today's Done Blocks</button>
+    <button class="btn sm" id="btnCopySheetTsv" title="Copy unsynced/today rows as tab-separated values — paste directly into Column B with Ctrl+V if company IT blocks Web Apps"><span class="material-symbols-rounded">content_paste_go</span> Copy Rows for Sheet (TSV)</button>
+  </div>
+  <div id="sheetMsg" class="muted" style="margin-top:8px;min-height:16px;line-height:1.4"></div>
+  <div id="sheetQueueBox" style="display:none;margin-top:8px;padding:8px;border:1px solid var(--warn);border-radius:6px;background:rgba(245,158,11,0.08);font-size:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <span id="sheetQueueText">0 pending sync(s)</span>
+      <button class="btn sm" id="btnRetrySheetQueue">Retry Sync Now</button>
+    </div>
+  </div>
+  <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px;border-top:1px solid var(--line);padding-top:10px">
+    <button class="btn" id="sheetClose">Close</button>
+    <button class="btn primary" id="sheetSave">Save Settings</button>
+  </div>
+</dialog>
+
+<dialog id="dlgUp">
+  <h2>Upload JSONs to Drive</h2>
+  <div id="upInfo" class="keys" style="margin-bottom:10px"></div>
+  <div class="row"><label>Your name</label><input class="inp" id="upName" placeholder="e.g. Iqra" style="width:180px"></div>
+  <div id="upMsg" style="margin:10px 0;max-width:460px"></div>
+  <div class="row up-footer">
+    <div id="upProgWrap" class="up-prog-wrap" style="display:none">
+      <div class="up-prog-top">
+        <span id="upProgLabel">Preparing…</span>
+        <span id="upProgPct">0%</span>
+      </div>
+      <div class="up-prog-track"><div id="upProgFill" class="up-prog-fill"></div></div>
+    </div>
+    <div class="up-footer-btns">
+      <button class="btn" id="upClose">Close</button>
+      <button class="btn primary" id="btnNextBlockUp" style="display:none"><span class="material-symbols-rounded">skip_next</span> <span id="btnNextBlockUpTxt">Open Next Block</span></button>
+      <button class="btn primary" id="upGo">Upload</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dlgClass">
+  <h2 id="clsTitle">Class for this box</h2>
+  <input class="inp" id="clsInput" placeholder="type a class, or pick one below" autocomplete="off" style="width:100%">
+  <div id="clsList"></div>
+  <label class="row" id="clsRememberRow" style="gap:6px;cursor:pointer"><input type="checkbox" id="clsRemember"> Remember this class: don't ask again for the next boxes</label>
+  <div class="muted" id="clsKeys" style="margin:2px 0 10px">Enter = OK · &uarr;&darr; = pick from the list · Esc = discard the box</div>
+  <div class="row" style="justify-content:flex-end">
+    <button class="btn" id="clsCancel">Discard box</button>
+    <button class="btn primary" id="clsOk">OK</button>
+  </div>
+</dialog>
+
+<dialog id="dlgHighAlt" style="width:520px;max-width:92vw">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+    <span class="material-symbols-rounded" style="font-size:24px;color:var(--warn)">warning</span>
+    <h2 style="margin:0;font-size:16px;flex:1">High-Altitude Images Detected (20+ Segments)</h2>
+  </div>
+  <p style="margin:4px 0 12px;font-size:13px;line-height:1.4">
+    The following images have <b>20 or more segments</b>, which typically indicates high-altitude drone captures where individual rows should not be annotated. Would you like to delete their <code>.json</code> annotation files? (<b>The image files will NOT be deleted.</b>)
+  </p>
+  <div id="highAltList" style="max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:8px;background:var(--bg);font-family:Consolas,monospace;font-size:12px;display:flex;flex-direction:column;gap:4px"></div>
+  <div class="row" style="justify-content:flex-end;margin-top:16px;gap:8px">
+    <button class="btn" id="highAltKeep">Keep All JSONs</button>
+    <button class="btn" id="highAltDelete" style="background:var(--bad);color:#fff;border-color:var(--bad)"><span class="material-symbols-rounded" style="vertical-align:middle;font-size:16px">delete_forever</span> Delete Matching JSONs</button>
+  </div>
+</dialog>
+
+<div id="ctxMenu" role="menu">
+  <div class="ctxHead" id="ctxHead"></div>
+  <button id="ctxDraw" role="menuitem"><span>＋ Draw box</span><kbd>R</kbd></button>
+  <button id="ctxBox" role="menuitem" class="ctxShape"><span>⬚ Edit box</span><kbd>E</kbd></button>
+  <button id="ctxEdit" role="menuitem" class="ctxShape"><span>✎ Edit class…</span><kbd>C</kbd></button>
+  <button id="ctxDelete" role="menuitem" class="danger ctxShape"><span>🗑 Delete</span><kbd>`</kbd></button>
+</div>
+<div id="hoverTip"></div>
+
+<div id="toast"></div>
+
+<input type="color" id="classColorPicker" style="display:none" aria-hidden="true">
+
+<script src="script.js"></script>
+</body>
+</html>
